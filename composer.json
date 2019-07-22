@@ -1,0 +1,27 @@
+{
+    "name": "yhshanto/token-auth",
+    "description": "Laravel JWT token auth with consumer tracking",
+    "authors": [
+        {
+            "name": "Yousuf Hossain",
+            "email": "yousuf.hossain.shanto@gmail.com"
+        }
+    ],
+    "require": {
+        "firebase/php-jwt": "*"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "YHShanto\\Token\\TokenServiceProvider"
+            ]
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "YHShanto\\Token\\": "src/"
+        },
+        "classmap": [
+        ]
+    }
+}
