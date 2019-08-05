@@ -12,6 +12,7 @@ trait HasTokens
     public $inputKey = 'access_token';
     public $consumerKey = 'Consumer-Key';
 
+
     public function tokens()
 
     {
