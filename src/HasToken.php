@@ -2,38 +2,23 @@
 
 namespace YHShanto\Token;
 
-use Carbon\Carbon;
 use Firebase\JWT\JWT;
-use YHShanto\Token\Models\Consumer;
-use YHShanto\Token\Models\Token;
 
 trait HasTokens
 {
-    public $inputKey = 'access_token';
-    public $consumerKey = 'Consumer-Key';
 
-
-    public function tokens()
+    public function generateToken()
 
     {
 
-        return $this->morphMany(Token::class, 'user');
+        $secret_key = sha1(config('app.key'));
+        $payload = $this->getTokenPayload();
+        $token = JWT::encode($payload, $secret_key);
 
-    }
-
-    public function generateToken(Consumer $consumer)
-
-    {
-
-        $secret_key = $consumer->secret_key;
-
-        $token = JWT::encode($this->getTokenPayload(), $secret_key);
-
-        return $this->tokens()->create([
-            'consumer_id' => $consumer->id,
+        return [
             'token' => $token,
-            'expires_in' => Carbon::now()->addHours(5)
-        ]);
+            'expires_in' => $payload['exp']
+        ];
 
     }
 
@@ -42,10 +27,12 @@ trait HasTokens
     {
 
         /** @var \App\User $this */
+        $ti = time();
         return [
             "iss" => config('app.url'),
             "aud" => config('app.url'),
-            "iat" => time(),
+            "iat" => $ti,
+            "exp" => ($ti+3600),
             "data" => $this->getAttributes()
         ];
 

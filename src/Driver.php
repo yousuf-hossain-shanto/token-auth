@@ -7,10 +7,6 @@ use Illuminate\Auth\GuardHelpers;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\UserProvider;
-use YHShanto\Token\Events\TokenGenerated;
-use YHShanto\Token\Events\TokenValidated;
-use YHShanto\Token\Models\Consumer;
-use YHShanto\Token\Models\Token;
 
 class Driver implements Guard
 {
@@ -22,40 +18,18 @@ class Driver implements Guard
      * @var \Illuminate\Http\Request
      */
     protected $request;
-
-    /**
-     * The name of the query string item from the request containing the API token.
-     *
-     * @var string
-     */
-    protected $inputKey;
-
-    /**
-     * The name of the token "column" in persistent storage.
-     *
-     * @var string
-     */
-    protected $consumerKey;
-
     /**
      * Create a new authentication guard.
      *
      * @param  \Illuminate\Contracts\Auth\UserProvider $provider
      * @param  \Illuminate\Http\Request $request
-     * @param  string $inputKey
-     * @param  string $consumerKey
      * @return void
      */
-    public function __construct(
-        UserProvider $provider,
-        Request $request,
-        $inputKey = 'access_token',
-        $consumerKey = 'Consumer-Key')
+    public function __construct(UserProvider $provider, Request $request)
+
     {
         $this->request = $request;
         $this->provider = $provider;
-        $this->inputKey = $inputKey;
-        $this->consumerKey = $consumerKey;
     }
 
     /**
@@ -93,33 +67,7 @@ class Driver implements Guard
      */
     public function getTokenForRequest()
     {
-        $raw_token = $this->request->bearerToken();
-
-        return Token::where('token', $raw_token)->first();
-    }
-
-    /**
-     * Get the consumer for the current request.
-     *
-     * @return string
-     */
-    public function getConsumerForRequest()
-    {
-        $publishable_key = $this->request->query($this->consumerKey);
-
-        if (empty($publishable_key)) {
-            $publishable_key = $this->request->input($this->consumerKey);
-        }
-
-        if (empty($publishable_key)) {
-            $publishable_key = $this->request->header($this->consumerKey, '');
-        }
-
-        if (empty($publishable_key)) return false;
-
-        $consumer = Consumer::where('publishable_key', $publishable_key)->first();
-        if ($consumer) return $consumer;
-        return false;
+        return $this->request->bearerToken();
     }
 
     /**
@@ -130,39 +78,39 @@ class Driver implements Guard
      */
     public function validate(array $credentials = [])
     {
-        $consumer = $this->getConsumerForRequest();
-        /** @var Token $token */
         $token = $this->getTokenForRequest();
 
-        if (!$consumer || !$token) return false;
+        if (!$token) return false;
 
-        $res = $token->isValid($consumer);
+        return $this->isValid($token);
+    }
 
-        if ($res) {
-            event(new TokenValidated($consumer, $token));
-            return $res;
+    public function isValid($token)
+    {
+        $key = sha1(config('app.key'));
+        try {
+            $decoded = JWT::decode($token, $key, array('HS256'));
+            return $decoded->data;
+        } catch (\Exception $exception) {
+            return false;
         }
+    }
+
+    public function attempt(array $credentials = [])
+    {
+        $user = $this->provider->retrieveByCredentials($credentials);
+
+        if ($user && $this->provider->validateCredentials($user, $credentials)) return true;
 
         return false;
 
     }
 
-    public function attempt(array $credentials = [])
+    public function createToken(HasTokens $user)
+
     {
-        $consumer = $this->getConsumerForRequest();
-        $user = $this->provider->retrieveByCredentials($credentials);
 
-        if ($user && $this->provider->validateCredentials($user, $credentials)) {
-            /** @var HasTokens $user */
-            $res = $user->generateToken($consumer);
-            if ($res) {
-                event(new TokenGenerated($consumer, $res));
-                return $res;
-            }
-            return $res;
-        }
-
-        return false;
+        return $user->generateToken();
 
     }
 

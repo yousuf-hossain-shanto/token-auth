@@ -12,10 +12,8 @@ class TokenServiceProvider extends ServiceProvider
 
     public function register()
     {
-        $this->loadMigrationsFrom(__DIR__ . '/migrations');
-
         Auth::extend('yh_token', function ($app, $name, $config) {
-            return new Driver($this->createUserProvider($config['provider'] ?? null), app('request'), $config);
+            return new Driver($this->createUserProvider($config['provider'] ?? null), app('request'));
         });
     }
 }
